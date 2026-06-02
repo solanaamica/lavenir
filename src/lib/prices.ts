@@ -161,7 +161,7 @@ export async function fetchPortfolioPrices(assets: Asset[]): Promise<PortfolioPr
     } else if (asset.type === "reksa_dana") {
       // Use expected return to estimate current value (simplified)
       const years = 1; // assume 1 year
-      const expectedReturn = (asset as any).expected_return ?? 0;
+      const expectedReturn = asset.expected_return ?? 0;
       const growthFactor = 1 + (expectedReturn / 100) * years;
       currentPrice = asset.avg_price * growthFactor;
       costIDR = asset.avg_price; // reksa_dana: quantity=1, avg_price=total invested

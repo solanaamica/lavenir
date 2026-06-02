@@ -9,6 +9,7 @@ export interface Asset {
   quantity: number;
   avg_price: number;
   currency: "IDR" | "USD";
+  expected_return?: number; // reksa_dana only
   created_at: string;
   updated_at: string;
 }
