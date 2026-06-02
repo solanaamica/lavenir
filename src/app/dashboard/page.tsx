@@ -4,6 +4,7 @@ import { formatIDR, formatPercent } from "@/lib/utils";
 import PortfolioChart from "@/components/dashboard/PortfolioChart";
 import CompositionChart from "@/components/dashboard/CompositionChart";
 import LivePortfolio from "@/components/dashboard/LivePortfolio";
+import { fetchUsdIdr } from "@/lib/prices";
 import { ASSET_COLORS, ASSET_LABELS, type AssetType } from "@/types";
 
 export default async function DashboardPage() {
@@ -43,12 +44,41 @@ export default async function DashboardPage() {
     ? ((totalValue - ytdSnap.value) / ytdSnap.value) * 100
     : 0;
 
-  // Composition
+  // Composition — cost basis in IDR, correct per asset type
+  const usdIdr = await fetchUsdIdr();
   const assetGroups: Record<string, number> = {};
+
   for (const asset of assets ?? []) {
     const type = asset.type as AssetType;
-    assetGroups[type] = (assetGroups[type] ?? 0) + (asset.quantity * asset.avg_price);
+    let valueIDR = 0;
+
+    if (type === "saham_id") {
+      // quantity = lots, 1 lot = 100 shares, avg_price = IDR/share
+      valueIDR = asset.quantity * 100 * asset.avg_price;
+    } else if (type === "saham_us" || type === "crypto") {
+      // avg_price in USD → convert to IDR
+      valueIDR = asset.quantity * asset.avg_price * usdIdr;
+    } else if (type === "reksa_dana") {
+      // quantity = 1, avg_price = total invested (IDR)
+      valueIDR = asset.avg_price;
+    } else if (type === "cash") {
+      // quantity = 1, avg_price = amount in asset's currency
+      valueIDR = asset.currency === "USD"
+        ? asset.avg_price * usdIdr
+        : asset.avg_price;
+    }
+
+    console.log(
+      `[composition] ${asset.symbol ?? asset.name} (${type}):`,
+      `qty=${asset.quantity} avg_price=${asset.avg_price} currency=${asset.currency}`,
+      `→ IDR ${valueIDR.toLocaleString()}`
+    );
+
+    assetGroups[type] = (assetGroups[type] ?? 0) + valueIDR;
   }
+
+  console.log("[composition] groups:", assetGroups, "usdIdr:", usdIdr);
+
   const assetTotal = Object.values(assetGroups).reduce((a, b) => a + b, 0);
   const compositionData = Object.entries(assetGroups).map(([type, value]) => ({
     type: type as AssetType,
